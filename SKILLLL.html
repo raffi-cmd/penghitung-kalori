@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FitMacro Calculator - Dynamic Glassmorphism</title>
+
+  <!-- CDN Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Konfigurasi Warna Kustom Tailwind (Teal & Emerald) -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              teal: '#0d9488',
+              emerald: '#059669',
+              dark: '#0f172a'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- CDN Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- CDN Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Latar Belakang Bergerak Dinamis */
+    @keyframes animatedBackground {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    body {
+      background: linear-gradient(-45deg, #0f172a, #1e1b4b, #064e3b, #0f766e);
+      background-size: 400% 400%;
+      animation: animatedBackground 15s ease infinite;
+    }
+
+    /* Utilitas Custom Glassmorphism */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .glass-input {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+    }
+    .glass-input:focus {
+      outline: none;
+      border-color: #10b981;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* PERBAIKAN DROPDOWN OPTION (MEMAKSA BACKGROUND GELAP & TEKS PUTIH) */
+    select option {
+      background-color: #0f172a !important;
+      color: #ffffff !important;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 flex flex-col justify-between font-sans antialiased p-4 md:p-8">
+
+  <!-- Header Navigasi -->
+  <header class="max-w-7xl mx-auto w-full mb-8">
+    <div class="glass-card px-6 py-4 rounded-2xl flex items-center justify-between shadow-2xl">
+      <div class="flex items-center space-x-3">
+        <div class="p-2.5 bg-emerald-500/20 rounded-xl text-emerald-400 border border-emerald-500/30">
+          <i data-lucide="activity" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            FitMacro <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-normal">PRO</span>
+          </h1>
+          <p class="text-xs text-slate-400">Kalkulator Biometrik & Alokasi Makronutrisi</p>
+        </div>
+      </div>
+      <div class="text-right text-xs text-slate-400 hidden sm:block">
+        <span>Transparansi UI: <span class="text-emerald-400 font-semibold">Aktif</span></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Kontainer Utama Grid 2 Kolom -->
+  <main class="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+    
+    <!-- Kolom Kiri: Form Input Biometrik -->
+    <section class="lg:col-span-5 flex flex-col justify-between">
+      <div class="glass-card p-6 md:p-8 rounded-3xl shadow-2xl space-y-6">
+        
+        <div class="border-b border-white/10 pb-4">
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="user-check" class="w-5 h-5 text-emerald-400"></i> Input Data Biometrik
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">Isi data pribadi untuk mendapatkan estimasi kebutuhan kalori presisi.</p>
+        </div>
+
+        <!-- Inline Error Alert Badge -->
+        <div id="errorAlert" class="hidden p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs flex items-center gap-2">
+          <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0"></i>
+          <span id="errorMessage">Mohon isi semua data dengan wajar.</span>
+        </div>
+
+        <form id="macroForm" onsubmit="event.preventDefault(); handleCalculate();" class="space-y-5">
+          
+          <!-- Gender Segmented Control -->
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">Jenis Kelamin</label>
+            <div class="grid grid-cols-2 gap-3 p-1 rounded-xl bg-slate-900/60 border border-white/10">
+              <button type="button" id="btnMale" onclick="setGender('male')" class="py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 bg-emerald-600 text-white shadow-md">
+                <i data-lucide="mars" class="w-4 h-4"></i> Pria
+              </button>
+              <button type="button" id="btnFemale" onclick="setGender('female')" class="py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white">
+                <i data-lucide="venus" class="w-4 h-4"></i> Wanita
+              </button>
+            </div>
+          </div>
+
+          <!-- Input Usia, Berat, Tinggi -->
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label for="age" class="block text-xs font-medium text-slate-300 mb-1">Usia</label>
+              <div class="relative">
+                <input type="number" id="age" value="16" min="13" max="100" class="w-full glass-input px-3 py-2.5 rounded-xl text-sm font-medium pr-8" placeholder="25" required>
+                <span class="absolute right-2.5 top-2.5 text-xs text-slate-400">th</span>
+              </div>
+            </div>
+            <div>
+              <label for="weight" class="block text-xs font-medium text-slate-300 mb-1">Berat</label>
+              <div class="relative">
+                <input type="number" id="weight" value="78" min="30" max="300" step="0.1" class="w-full glass-input px-3 py-2.5 rounded-xl text-sm font-medium pr-8" placeholder="70" required>
+                <span class="absolute right-2.5 top-2.5 text-xs text-slate-400">kg</span>
+              </div>
+            </div>
+            <div>
+              <label for="height" class="block text-xs font-medium text-slate-300 mb-1">Tinggi</label>
+              <div class="relative">
+                <input type="number" id="height" value="171" min="100" max="250" class="w-full glass-input px-3 py-2.5 rounded-xl text-sm font-medium pr-8" placeholder="170" required>
+                <span class="absolute right-2.5 top-2.5 text-xs text-slate-400">cm</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Select Tingkat Aktivitas Harian (Diberikan styling eksplisit per opsi) -->
+          <div>
+            <label for="activity" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Aktivitas Harian</label>
+            <select id="activity" class="w-full glass-input px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer">
+              <option value="1.2" class="bg-slate-900 text-white">Sangat Jarang Olahraga (Sedentari)</option>
+              <option value="1.375" class="bg-slate-900 text-white">Ringan (Olahraga 1-3 hari/minggu)</option>
+              <option value="1.55" class="bg-slate-900 text-white" selected>Sedang (Olahraga 3-5 hari/minggu)</option>
+              <option value="1.725" class="bg-slate-900 text-white">Berat (Olahraga 6-7 hari/minggu)</option>
+              <option value="1.9" class="bg-slate-900 text-white">Ekstrim (Fisik Berat & Atlet)</option>
+            </select>
+          </div>
+
+          <!-- Radio Target Kebugaran -->
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">Target Kebugaran</label>
+            <div class="grid grid-cols-3 gap-2">
+              <label class="cursor-pointer">
+                <input type="radio" name="goal" value="loss" class="peer hidden" checked>
+                <div class="p-2.5 rounded-xl border border-white/10 text-center peer-checked:border-emerald-500 peer-checked:bg-emerald-500/20 text-slate-300 peer-checked:text-white transition-all">
+                  <div class="text-xs font-bold">Cut</div>
+                  <div class="text-[10px] opacity-70">Turun BB</div>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input type="radio" name="goal" value="maintain" class="peer hidden">
+                <div class="p-2.5 rounded-xl border border-white/10 text-center peer-checked:border-teal-500 peer-checked:bg-teal-500/20 text-slate-300 peer-checked:text-white transition-all">
+                  <div class="text-xs font-bold">Maintain</div>
+                  <div class="text-[10px] opacity-70">Jaga BB</div>
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input type="radio" name="goal" value="gain" class="peer hidden">
+                <div class="p-2.5 rounded-xl border border-white/10 text-center peer-checked:border-cyan-500 peer-checked:bg-cyan-500/20 text-slate-300 peer-checked:text-white transition-all">
+                  <div class="text-xs font-bold">Bulk</div>
+                  <div class="text-[10px] opacity-70">Naik BB</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Tombol Hitung & Reset -->
+          <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-semibold transition-all shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2">
+              <i data-lucide="calculator" class="w-4 h-4"></i> Hitung Kalori & Makro
+            </button>
+            <button type="button" onclick="resetForm()" class="px-4 py-3 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 text-slate-300 active:scale-95 transition-all">
+              <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </section>
+
+    <!-- Kolom Kanan: Panel Hasil & Visualisasi Grafik -->
+    <section class="lg:col-span-7 flex flex-col justify-between">
+      <div class="glass-card p-6 md:p-8 rounded-3xl shadow-2xl space-y-6">
+        
+        <div class="border-b border-white/10 pb-4 flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i data-lucide="pie-chart" class="w-5 h-5 text-teal-400"></i> Ringkasan Hasil Nutrisi
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">Rincian kalori dasar dan distribusi harian kamu.</p>
+          </div>
+          <span id="targetBadge" class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            Target: Weight Loss
+          </span>
+        </div>
+
+        <!-- 3 Kartu Ringkasan Energi -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-900/80 to-slate-800/80 border border-white/10">
+            <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">BMR (Metabolisme Basal)</div>
+            <div class="text-2xl font-black text-white"><span id="bmrVal">0</span> <span class="text-xs font-normal text-slate-400">kcal</span></div>
+            <div class="text-[10px] text-slate-400 mt-1">Energi saat istirahat total</div>
+          </div>
+          <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-900/80 to-slate-800/80 border border-white/10">
+            <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">TDEE (Kebutuhan Harian)</div>
+            <div class="text-2xl font-black text-teal-300"><span id="tdeeVal">0</span> <span class="text-xs font-normal text-slate-400">kcal</span></div>
+            <div class="text-[10px] text-slate-400 mt-1">Terhitung dengan aktivitas</div>
+          </div>
+          <div class="p-4 rounded-2xl bg-gradient-to-br from-emerald-900/40 to-teal-900/40 border border-emerald-500/30">
+            <div class="text-[11px] font-semibold text-emerald-300 uppercase tracking-wider mb-1">Target Kalori Harian</div>
+            <div class="text-2xl font-black text-emerald-400"><span id="targetCalVal">0</span> <span class="text-xs font-normal text-emerald-200/70">kcal</span></div>
+            <div class="text-[10px] text-emerald-200/60 mt-1">Asupan ideal sesuai target</div>
+          </div>
+        </div>
+
+        <!-- Layout Chart.js Canvas & Detail Gramasi -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+          
+          <!-- Grafik Donut -->
+          <div class="md:col-span-5 relative flex justify-center items-center p-2">
+            <div class="w-48 h-48">
+              <canvas id="macroChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Rincian Gramasi -->
+          <div class="md:col-span-7 space-y-3">
+            
+            <div class="p-3 rounded-xl bg-slate-900/50 border border-white/10 flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                <div>
+                  <div class="text-xs font-bold text-white">Protein</div>
+                  <div class="text-[10px] text-slate-400"><span id="proteinPct">35</span>% dari target kalori</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-black text-emerald-400"><span id="proteinGrams">0</span>g</div>
+                <div class="text-[10px] text-slate-400"><span id="proteinCal">0</span> kcal</div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-900/50 border border-white/10 flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-3 h-3 rounded-full bg-cyan-500"></div>
+                <div>
+                  <div class="text-xs font-bold text-white">Karbohidrat</div>
+                  <div class="text-[10px] text-slate-400"><span id="carbPct">35</span>% dari target kalori</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-black text-cyan-400"><span id="carbGrams">0</span>g</div>
+                <div class="text-[10px] text-slate-400"><span id="carbCal">0</span> kcal</div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-900/50 border border-white/10 flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+                <div>
+                  <div class="text-xs font-bold text-white">Lemak Sehat</div>
+                  <div class="text-[10px] text-slate-400"><span id="fatPct">30</span>% dari target kalori</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-black text-amber-400"><span id="fatGrams">0</span>g</div>
+                <div class="text-[10px] text-slate-400"><span id="fatCal">0</span> kcal</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Tombol Salin Ringkasan -->
+        <div class="pt-2 flex items-center justify-between">
+          <button onclick="copySummary()" class="w-full py-2.5 px-4 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 active:scale-98 text-white font-medium text-xs transition-all flex items-center justify-center gap-2 shadow-md">
+            <i data-lucide="copy" class="w-4 h-4"></i> Salin Ringkasan Nutrisi
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast Notifikasi Salin -->
+  <div id="toast" class="fixed bottom-6 right-6 translate-y-20 opacity-0 transition-all duration-300 glass-card px-4 py-3 rounded-xl border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 shadow-2xl z-50">
+    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+    <span>Ringkasan berhasil disalin ke papan klip!</span>
+  </div>
+
+  <footer class="max-w-7xl mx-auto w-full text-center text-xs text-slate-400 py-4">
+    <p>FitMacro Calculator &copy; 2026 &bull; Dibuat dengan HTML5, Tailwind CSS, & Chart.js</p>
+  </footer>
+
+  <!-- JavaScipt Logic Engine -->
+  <script>
+    let selectedGender = 'male';
+    let macroChartInstance = null;
+    let currentResults = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+      initChart();
+      handleCalculate();
+    });
+
+    function setGender(gender) {
+      selectedGender = gender;
+      const btnMale = document.getElementById('btnMale');
+      const btnFemale = document.getElementById('btnFemale');
+
+      if (gender === 'male') {
+        btnMale.className = "py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 bg-emerald-600 text-white shadow-md";
+        btnFemale.className = "py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white";
+      } else {
+        btnFemale.className = "py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 bg-emerald-600 text-white shadow-md";
+        btnMale.className = "py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 text-slate-400 hover:text-white";
+      }
+    }
+
+    function validateInputs(age, weight, height) {
+      const errorAlert = document.getElementById('errorAlert');
+      const errorMessage = document.getElementById('errorMessage');
+
+      if (isNaN(age) || age < 13 || age > 100) {
+        errorMessage.innerText = 'Usia harus di antara 13 hingga 100 tahun.';
+        errorAlert.classList.remove('hidden');
+        return false;
+      }
+      if (isNaN(weight) || weight < 30 || weight > 300) {
+        errorMessage.innerText = 'Berat badan harus di antara 30 kg hingga 300 kg.';
+        errorAlert.classList.remove('hidden');
+        return false;
+      }
+      if (isNaN(height) || height < 100 || height > 250) {
+        errorMessage.innerText = 'Tinggi badan harus di antara 100 cm hingga 250 cm.';
+        errorAlert.classList.remove('hidden');
+        return false;
+      }
+
+      errorAlert.classList.add('hidden');
+      return true;
+    }
+
+    function calculateBMR(gender, weight, height, age) {
+      if (gender === 'male') {
+        return (10 * weight) + (6.25 * height) - (5 * age) + 5;
+      } else {
+        return (10 * weight) + (6.25 * height) - (5 * age) - 161;
+      }
+    }
+
+    function handleCalculate() {
+      const age = parseFloat(document.getElementById('age').value);
+      const weight = parseFloat(document.getElementById('weight').value);
+      const height = parseFloat(document.getElementById('height').value);
+      const activityMultiplier = parseFloat(document.getElementById('activity').value);
+      const goal = document.querySelector('input[name="goal"]:checked').value;
+
+      if (!validateInputs(age, weight, height)) return;
+
+      const bmr = Math.round(calculateBMR(selectedGender, weight, height, age));
+      const tdee = Math.round(bmr * activityMultiplier);
+
+      let targetCalories = tdee;
+      let pRatio = 0.35, cRatio = 0.35, fRatio = 0.30;
+      let badgeText = "Target: Weight Loss (Cut)";
+
+      if (goal === 'loss') {
+        targetCalories = tdee - 500;
+        pRatio = 0.35; cRatio = 0.35; fRatio = 0.30;
+        badgeText = "Target: Weight Loss (Cut)";
+      } else if (goal === 'maintain') {
+        targetCalories = tdee;
+        pRatio = 0.25; cRatio = 0.50; fRatio = 0.25;
+        badgeText = "Target: Maintenance";
+      } else if (goal === 'gain') {
+        targetCalories = tdee + 400;
+        pRatio = 0.30; cRatio = 0.50; fRatio = 0.20;
+        badgeText = "Target: Weight Gain (Bulk)";
+      }
+
+      if (targetCalories < 1200) targetCalories = 1200;
+
+      const proteinCal = Math.round(targetCalories * pRatio);
+      const carbCal = Math.round(targetCalories * cRatio);
+      const fatCal = Math.round(targetCalories * fRatio);
+
+      const proteinGrams = Math.round(proteinCal / 4);
+      const carbGrams = Math.round(carbCal / 4);
+      const fatGrams = Math.round(fatCal / 9);
+
+      currentResults = {
+        bmr, tdee, targetCalories,
+        proteinGrams, carbGrams, fatGrams,
+        proteinCal, carbCal, fatCal,
+        pRatio: pRatio * 100, cRatio: cRatio * 100, fRatio: fRatio * 100,
+        badgeText
+      };
+
+      updateUI();
+    }
+
+    function animateValue(id, start, end, duration) {
+      const obj = document.getElementById(id);
+      if (!obj) return;
+      let startTimestamp = null;
+      const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        obj.innerText = Math.floor(progress * (end - start) + start).toLocaleString('id-ID');
+        if (progress < 1) {
+          window.requestAnimationFrame(step);
+        }
+      };
+      window.requestAnimationFrame(step);
+    }
+
+    function updateUI() {
+      if (!currentResults) return;
+
+      document.getElementById('targetBadge').innerText = currentResults.badgeText;
+
+      animateValue('bmrVal', 0, currentResults.bmr, 800);
+      animateValue('tdeeVal', 0, currentResults.tdee, 800);
+      animateValue('targetCalVal', 0, currentResults.targetCalories, 800);
+
+      animateValue('proteinGrams', 0, currentResults.proteinGrams, 600);
+      animateValue('carbGrams', 0, currentResults.carbGrams, 600);
+      animateValue('fatGrams', 0, currentResults.fatGrams, 600);
+
+      document.getElementById('proteinCal').innerText = currentResults.proteinCal;
+      document.getElementById('carbCal').innerText = currentResults.carbCal;
+      document.getElementById('fatCal').innerText = currentResults.fatCal;
+
+      document.getElementById('proteinPct').innerText = currentResults.pRatio;
+      document.getElementById('carbPct').innerText = currentResults.cRatio;
+      document.getElementById('fatPct').innerText = currentResults.fRatio;
+
+      updateChart(currentResults.proteinGrams, currentResults.carbGrams, currentResults.fatGrams);
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('macroChart').getContext('2d');
+      macroChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Protein (g)', 'Karbohidrat (g)', 'Lemak (g)'],
+          datasets: [{
+            data: [0, 0, 0],
+            backgroundColor: ['#10b981', '#06b6d4', '#f59e0b'],
+            borderWidth: 0,
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          cutout: '75%'
+        }
+      });
+    }
+
+    function updateChart(protein, carbs, fat) {
+      if (macroChartInstance) {
+        macroChartInstance.data.datasets[0].data = [protein, carbs, fat];
+        macroChartInstance.update();
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('macroForm').reset();
+      setGender('male');
+      document.getElementById('errorAlert').classList.add('hidden');
+      handleCalculate();
+    }
+
+    function copySummary() {
+      if (!currentResults) return;
+
+      const textToCopy = `=== RINGKASAN NUTRISI FITMACRO ===
+Goal: ${currentResults.badgeText}
+• BMR: ${currentResults.bmr} kcal
+• TDEE: ${currentResults.tdee} kcal
+• Target Harian: ${currentResults.targetCalories} kcal
+
+RINCIAN MAKRONUTRISI:
+- Protein: ${currentResults.proteinGrams}g (${currentResults.proteinCal} kcal - ${currentResults.pRatio}%)
+- Karbohidrat: ${currentResults.carbGrams}g (${currentResults.carbCal} kcal - ${currentResults.cRatio}%)
+- Lemak: ${currentResults.fatGrams}g (${currentResults.fatCal} kcal - ${currentResults.fRatio}%)
+=================================`;
+
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        const toast = document.getElementById('toast');
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        toast.classList.add('translate-y-0', 'opacity-100');
+
+        setTimeout(() => {
+          toast.classList.remove('translate-y-0', 'opacity-100');
+          toast.classList.add('translate-y-20', 'opacity-0');
+        }, 3000);
+      });
+    }
+  </script>
+</body>
+</html>
